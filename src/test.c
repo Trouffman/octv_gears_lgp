@@ -36,8 +36,11 @@ int readstatus(libusb_device_handle *camerahandle) {
 		exit(-5);
 	}
 
+	printf("Status received, bytes %i!, value: ", transferred);
+	for(size_t i = 0; i < transferred; i++)
+		printf("%i ", buffer[i]);
 
-	printf("Status received, bytes %i!, value: %i \n", transferred, buffer[0]);
+	printf("\n");
 }
 
 int main(int argc, char **argv) {
