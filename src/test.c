@@ -14,17 +14,19 @@
 #define CAMERA_ENDPOINT_ADDRESS_STATUS_RESPONSE		0x83
 #define TIMEOUT	5000
 
-int writecommand(libusb_device_handle *camerahandle, char* commandbuffer, size_t size) {
+int writecommand(libusb_device_handle *camerahandle, unsigned char* commandbuffer, size_t size) {
 	static int transferred = 0;
 	int err = libusb_bulk_transfer(camerahandle, CAMERA_ENDPOINT_ADDRESS_CONTROL, commandbuffer, size, &transferred, TIMEOUT);
 	if(err != 0) {
 		printf("Error while sending command: '%s' - '%s',  data sent: %i, data transferred: %i, crashing!\n", libusb_error_name(err), libusb_strerror(err), 512, transferred);
 		exit(-5);
+	} else {
+		return 0;
 	}
 }
 
 int readstatus(libusb_device_handle *camerahandle) {
-	static char buffer[512];
+	static unsigned char buffer[512];
 	memset(buffer, 0, 512);
 	static int transferred = 0;
 
@@ -41,10 +43,23 @@ int readstatus(libusb_device_handle *camerahandle) {
 		printf("%i ", buffer[i]);
 
 	printf("\n");
+	return 0;
 }
 
-int readvideostream() {
+int readvideostream(libusb_device_handle *camerahandle, FILE *outputfile) {
+	static unsigned char buffer[512];
+	memset(buffer, 0, 512);
+	static int transferred = 0;
 
+	int err = libusb_bulk_transfer(camerahandle, CAMERA_ENDPOINT_ADDRESS_VIDEO_CAPTURE, buffer, 512, &transferred, TIMEOUT);
+
+	if(err != 0) {
+		printf("Error while reading capture stream: '%s' - '%s' , data received: %i, crashing!\n", libusb_error_name(err), libusb_strerror(err),transferred);
+		return -1;
+	}
+
+	fwrite(buffer, transferred, transferred, outputfile);
+	return 0;
 }
 
 int main(int argc, char **argv) {
@@ -116,12 +131,14 @@ int main(int argc, char **argv) {
 
 	// 6. Comm
 
-	char id_00100[] = { 0x0b, 0x01, 0x02, 0x00, 0x15, 0x00, 0x00, 0x00, 0x2c, 0x0b  };
+	unsigned char id_00100[] = { 0x0b, 0x01, 0x02, 0x00, 0x15, 0x00, 0x00, 0x00, 0x2c, 0x0b  };
 	size_t id_00100_s = 10;	
-	char id_00101[] = { 0x0b, 0x01, 0x02, 0x00, 0x15, 0x00, 0x00, 0x00, 0x2c, 0x03  };
+	unsigned char id_00101[] = { 0x0b, 0x01, 0x02, 0x00, 0x15, 0x00, 0x00, 0x00, 0x2c, 0x03  };
 	size_t id_00101_s = 10;	
-	char id_00102[] = { 0x0b, 0x01, 0x02, 0x00, 0x15, 0x00, 0x00, 0x00, 0x2c, 0x05  };
+	unsigned char id_00102[] = { 0x0b, 0x01, 0x02, 0x00, 0x15, 0x00, 0x00, 0x00, 0x2c, 0x05  };
 	size_t id_00102_s = 10;
+
+/* UNUSED
 	char id_00103[] = { 0x01, 0x01, 0x01, 0x00, 0xF8, 0x06, 0x00, 0x00, 0x06, 0x00, 0x00, 0x00  };
 	size_t id_00103_s = 12;
 	char id_00104[] = { 0x01, 0x01, 0x01, 0x00, 0xCC, 0x06, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00  };
@@ -214,7 +231,7 @@ int main(int argc, char **argv) {
 	size_t id_00148_s = 8;
 	char id_00149[] = { 0x01, 0x00, 0x01, 0x00, 0x18, 0x06, 0x00, 0x00  };
 	size_t id_00149_s = 8;
-	
+*/	
 
 
 	// Boot
@@ -233,36 +250,47 @@ int main(int argc, char **argv) {
 	printf("Done\n");
 
 
+	struct commandframe {
+		unsigned char command[64];
+		size_t size;
+	};
 
 	// Try to start streaming	
-	char capturepackets[][] = {
-		{/* INSERT FIRST PACKET BYTES HERE*/ },
-		{/* INSERT SECOND PACKET BYTES HERE*/},
+	size_t capturepacketcount = 0;
+	struct commandframe capturepackets[] = {
+		{ 0x00,0x00,0x0F },
+		{ 0x00,0x00,0x0A, 0x0B },
 		/* CONTINUE INSERTING PACKETS UNTIL THE END */
-	};
-	size_t capturepacketsize[] = {
-		/* INSERT FIRST PACKET BYTE COUNT HERE*/ ,
-		/* INSERT SECOND PACKET BYTE COUNT HERE*/,
-		/* CONTINUE INSERTING PACKET SIZES UNTIL THE END */
 	};
 
 	printf("Sending the capture command packets...\n");
 	for(size_t i = 0; i < capturepacketcount; i++) {
-		writecommand(camerahandle, capturepackets[i], capturepacketsize[i]);
+		writecommand(camerahandle, capturepackets[i].command, capturepackets[i].size);
 		readstatus(camerahandle);
 	}
 
 	printf("Capture stream sent, will try to capture stuff on other endpoint now...\n");
 
-	int running = 1;
-	while(running) {
-		readvideostream(camerahandle);
-		// TODO some status has to change running to 0, probably on the command endpoint
-	}
-
-
+	FILE *outputfile = fopen("capture.h264", "wb");
+	if(outputfile != NULL) { 
+		int running = 1;
+		while(running) {
+			int err = readvideostream(camerahandle, outputfile);
+			if(err != 0) {
+				running = 0;
+				printf("ERROR WITH STREAM CAPTURE, ABORT!\n");
+			}
+		}
+	} else {
+		printf("Failed to open capture file, obviously - aborting!\n");
+	}	
 
 	// 7. Cleanup
+	if(outputfile != NULL) {
+		printf("Closing capture file...\n");
+		fclose(outputfile);
+	}
+
 	printf("Closing handles...\n");
 	libusb_release_interface(camerahandle, CAMERA_INTERACE);
 	libusb_close(camerahandle);
