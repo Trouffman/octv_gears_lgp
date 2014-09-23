@@ -43,6 +43,10 @@ int readstatus(libusb_device_handle *camerahandle) {
 	printf("\n");
 }
 
+int readvideostream() {
+
+}
+
 int main(int argc, char **argv) {
 	// Process:
 	// 1. Grab USB context
@@ -230,14 +234,31 @@ int main(int argc, char **argv) {
 
 
 
-	// Something	
-	printf("Something...\n");
-	char i_00200[] = { 0x0b, 0x01, 0x02, 0x00, 0x15, 0x00, 0x00, 0x00, 0x2c, 0x0b  };
-	size_t id_00200_s = 10;	
+	// Try to start streaming	
+	char capturepackets[][] = {
+		{/* INSERT FIRST PACKET BYTES HERE*/ },
+		{/* INSERT SECOND PACKET BYTES HERE*/},
+		/* CONTINUE INSERTING PACKETS UNTIL THE END */
+	};
+	size_t capturepacketsize[] = {
+		/* INSERT FIRST PACKET BYTE COUNT HERE*/ ,
+		/* INSERT SECOND PACKET BYTE COUNT HERE*/,
+		/* CONTINUE INSERTING PACKET SIZES UNTIL THE END */
+	};
 
+	printf("Sending the capture command packets...\n");
+	for(size_t i = 0; i < capturepacketcount; i++) {
+		writecommand(camerahandle, capturepackets[i], capturepacketsize[i]);
+		readstatus(camerahandle);
+	}
 
+	printf("Capture stream sent, will try to capture stuff on other endpoint now...\n");
 
-	printf("Done\n");
+	int running = 1;
+	while(running) {
+		readvideostream(camerahandle);
+		// TODO some status has to change running to 0, probably on the command endpoint
+	}
 
 
 
