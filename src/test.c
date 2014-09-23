@@ -251,15 +251,15 @@ int main(int argc, char **argv) {
 
 
 	struct commandframe {
-		unsigned char command[64];
 		size_t size;
+		unsigned char command[64];
 	};
 
 	// Try to start streaming	
 	size_t capturepacketcount = 0;
 	struct commandframe capturepackets[] = {
-		{ 0x00,0x00,0x0F },
-		{ 0x00,0x00,0x0A, 0x0B },
+		{ 2, { 0x00,0x0F} },
+		{ 3, {0x00,0x0A, 0x0B } },
 		/* CONTINUE INSERTING PACKETS UNTIL THE END */
 	};
 
