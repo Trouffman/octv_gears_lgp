@@ -33,14 +33,14 @@ int readstatus(libusb_device_handle *camerahandle) {
 
 	int err = libusb_bulk_transfer(camerahandle, CAMERA_ENDPOINT_ADDRESS_STATUS_RESPONSE, buffer, 512, &transferred, TIMEOUT);
 
-	if(err != 0) {
+	if(err != 0 || err != LIBUSB_ERROR_TIMEOUT) {
 		printf("Error while reading command: '%s' - '%s' , data received: %i, crashing!\n", libusb_error_name(err), libusb_strerror(err),transferred);
 		exit(-5);
 	}
 
 	printf("Status received, bytes %i!, value: ", transferred);
 	for(size_t i = 0; i < transferred; i++)
-		printf("%i ", buffer[i]);
+		printf("%x ", buffer[i]);
 
 	printf("\n");
 	return 0;
