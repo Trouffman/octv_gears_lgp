@@ -18,7 +18,7 @@ int writecommand(libusb_device_handle *camerahandle, unsigned char* commandbuffe
 	static int transferred = 0;
 	int err = libusb_bulk_transfer(camerahandle, CAMERA_ENDPOINT_ADDRESS_CONTROL, commandbuffer, size, &transferred, TIMEOUT);
 	if(err != 0) {
-		printf("Error while sending command: '%s' - '%s',  data sent: %i, data transferred: %i, crashing!\n", libusb_error_name(err), libusb_strerror(err), 512, transferred);
+		fprintf(stderr, "Error while sending command: '%s' - '%s',  data sent: %i, data transferred: %i, crashing!\n", libusb_error_name(err), libusb_strerror(err), 512, transferred);
 		exit(-5);
 	} else {
 		return 0;
@@ -34,18 +34,18 @@ int readstatus(libusb_device_handle *camerahandle) {
 	int err = libusb_bulk_transfer(camerahandle, CAMERA_ENDPOINT_ADDRESS_STATUS_RESPONSE, buffer, 512, &transferred, TIMEOUT);
 
 	if(err != 0 && err != LIBUSB_ERROR_TIMEOUT) {
-		printf("Error while reading command: '%s' - '%s' , data received: %i, crashing!\n", libusb_error_name(err), libusb_strerror(err),transferred);
+		fprintf(stderr, "Error while reading command: '%s' - '%s' , data received: %i, crashing!\n", libusb_error_name(err), libusb_strerror(err),transferred);
 		exit(-5);
 	}
 
 	if(transferred == 0) {
-		printf("Status NOT received; TIMEOUT!\n");
+		fprintf(stderr,"Status NOT received; TIMEOUT!\n");
 	} else {
-		printf("Status received, bytes %i!, value: ", transferred);
+		fprintf(stderr,"Status received, bytes %i!, value: ", transferred);
 		for(size_t i = 0; i < transferred; i++)
-			printf("%.2x ", buffer[i]);
+			fprintf(stderr,"%.2x ", buffer[i]);
 	
-		printf("\n");
+		fprintf(stderr,"\n");
 	}
 	return 0;
 }
@@ -58,7 +58,7 @@ int readvideostream(libusb_device_handle *camerahandle, FILE *outputfile) {
 	int err = libusb_bulk_transfer(camerahandle, CAMERA_ENDPOINT_ADDRESS_VIDEO_CAPTURE, buffer, 512, &transferred, TIMEOUT);
 
 	if(err != 0) {
-		printf("Error while reading capture stream: '%s' - '%s' , data received: %i, crashing!\n", libusb_error_name(err), libusb_strerror(err),transferred);
+		fprintf(stderr,"Error while reading capture stream: '%s' - '%s' , data received: %i, crashing!\n", libusb_error_name(err), libusb_strerror(err),transferred);
 		return -1;
 	}
 
@@ -80,9 +80,9 @@ int main(int argc, char **argv) {
 	// 1. Grab USB context
 	libusb_context *usbcontext = NULL;
 	if(libusb_init(&usbcontext) == 0)
-		printf("We got the context\n");
+		fprintf(stderr,"We got the context\n");
 	else {
-		printf("We DONT have the context\n");
+		fprintf(stderr,"We DONT have the context\n");
 		exit(1);
 	}
 
@@ -93,7 +93,7 @@ int main(int argc, char **argv) {
 	libusb_device **devicelist;
 	size_t devicecount = libusb_get_device_list(usbcontext, &devicelist);
 	if(devicecount < 0) {
-		printf("Error when counting devices!\n");
+		fprintf(stderr,"Error when counting devices!\n");
 		exit(-1);
 	}
 
@@ -105,9 +105,9 @@ int main(int argc, char **argv) {
 		libusb_get_device_descriptor(dev, &desc);
 
 		if(desc.idVendor == CAMERA_VENDOR && desc.idProduct == CAMERA_PRODUCT) {
-			printf("Found camera!\n");
+			fprintf(stderr,"Found camera!\n");
 			if(libusb_open(dev, &camerahandle) != 0) {
-				printf("Error getting the handle!\n");
+				fprintf(stderr,"Error getting the handle!\n");
 				camerahandle = NULL;
 			}
 		}
@@ -115,21 +115,21 @@ int main(int argc, char **argv) {
 
 
 	if(camerahandle == NULL) {
-		printf("Couldn't obtain camera handle.\n");
+		fprintf(stderr,"Couldn't obtain camera handle.\n");
 		exit(-2);
 	}
 
 
 	// 4. Configure the camera
 	if(libusb_set_configuration(camerahandle, CAMERA_CONFIGURATION) != 0) {
-		printf("Failed to set configuration!\n");
+		fprintf(stderr,"Failed to set configuration!\n");
 		exit(-3);
 	}
 
 
 	// 5. Claim interfaces
 	if(libusb_claim_interface(camerahandle, CAMERA_INTERACE) != 0) {
-		printf("Failed to claim interface!\n");
+		fprintf(stderr,"Failed to claim interface!\n");
 		exit(-4);
 	}
 
@@ -239,7 +239,7 @@ int main(int argc, char **argv) {
 
 
 	// Boot
-	printf("Init procedure...\n");
+	fprintf(stderr,"Init procedure...\n");
 	writecommand(camerahandle, id_00100, id_00100_s);
 	readstatus(camerahandle);
 	sleep(1);
@@ -251,7 +251,7 @@ int main(int argc, char **argv) {
 	writecommand(camerahandle, id_00102, id_00102_s);
 	readstatus(camerahandle);
 	sleep(1);
-	printf("Done\n");
+	fprintf(stderr,"Done\n");
 
 
 	struct commandframe {
@@ -379,22 +379,21 @@ int main(int argc, char **argv) {
 	for(size_t i = 0; capturepackets[i].size != 0; i++)
 		capturepacketcount++;
 
-	printf("Count done, %i packets to send; sending the capture command packets...\n", capturepacketcount);
+	fprintf(stderr,"Count done, %i packets to send; sending the capture command packets...\n", capturepacketcount);
 	for(size_t i = 0; i < capturepacketcount; i++) {
 		// Please add a debug to have the output of the command sent please. 
 		// Note Trouff : i dunno how to print the data sent for debugging purpose only.
-		printf("Sending : step %zu with size %zu & data : ", i, capturepackets[i].size);
+		fprintf(stderr,"Sending : step %zu with size %zu & data : ", i, capturepackets[i].size);
 		for(size_t j = 0; j < capturepackets[i].size; j++)
-			printf("%.2x ", capturepackets[i].command[j]);
-		printf("\n");
+			fprintf(stderr,"%.2x ", capturepackets[i].command[j]);
+		fprintf(stderr,"\n");
 
 		writecommand(camerahandle, capturepackets[i].command, capturepackets[i].size);
 		readstatus(camerahandle);
 	//	sleep(5);
 	}
 
-	printf("Capture stream sent, will try to capture stuff on other endpoint now...\n");
-
+	fprintf(stderr,"Capture stream sent, will try to capture stuff on other endpoint now...\n");
 	FILE *outputfile = fopen("capture.h264", "wb");
 	if(outputfile != NULL) { 
 		int running = 1;
@@ -402,24 +401,24 @@ int main(int argc, char **argv) {
 			int err = readvideostream(camerahandle, outputfile);
 			if(err != 0) {
 				running = 0;
-				printf("ERROR WITH STREAM CAPTURE, ABORT!\n");
+				fprintf(stderr,"ERROR WITH STREAM CAPTURE, ABORT!\n");
 			}
 		}
 	} else {
-		printf("Failed to open capture file, obviously - aborting!\n");
+		fprintf(stderr,"Failed to open capture file, obviously - aborting!\n");
 	}	
 
 	// 7. Cleanup
 	if(outputfile != NULL) {
-		printf("Closing capture file...\n");
+		fprintf(stderr,"Closing capture file...\n");
 		fclose(outputfile);
 	}
 
-	printf("Closing handles...\n");
+	fprintf(stderr,"Closing handles...\n");
 	libusb_release_interface(camerahandle, CAMERA_INTERACE);
 	libusb_close(camerahandle);
 	libusb_free_device_list(devicelist, 1); // 1 = unref devices
 	libusb_exit(usbcontext);
-	printf("Bye\n");
+	fprintf(stderr,"Bye\n");
 	return 0;
 }
