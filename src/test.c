@@ -33,7 +33,7 @@ int readstatus(libusb_device_handle *camerahandle) {
 
 	int err = libusb_bulk_transfer(camerahandle, CAMERA_ENDPOINT_ADDRESS_STATUS_RESPONSE, buffer, 512, &transferred, TIMEOUT);
 
-	if(err != 0 || err != LIBUSB_ERROR_TIMEOUT) {
+	if(err != 0 && err != LIBUSB_ERROR_TIMEOUT) {
 		printf("Error while reading command: '%s' - '%s' , data received: %i, crashing!\n", libusb_error_name(err), libusb_strerror(err),transferred);
 		exit(-5);
 	}
@@ -384,7 +384,7 @@ int main(int argc, char **argv) {
 
 		writecommand(camerahandle, capturepackets[i].command, capturepackets[i].size);
 		readstatus(camerahandle);
-		sleep(5);
+	//	sleep(5);
 	}
 
 	printf("Capture stream sent, will try to capture stuff on other endpoint now...\n");
