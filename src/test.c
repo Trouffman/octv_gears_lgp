@@ -38,11 +38,15 @@ int readstatus(libusb_device_handle *camerahandle) {
 		exit(-5);
 	}
 
-	printf("Status received, bytes %i!, value: ", transferred);
-	for(size_t i = 0; i < transferred; i++)
-		printf("%x ", buffer[i]);
-
-	printf("\n");
+	if(transferred == 0) {
+		printf("Status NOT received; TIMEOUT!\n");
+	} else {
+		printf("Status received, bytes %i!, value: ", transferred);
+		for(size_t i = 0; i < transferred; i++)
+			printf("%.2x ", buffer[i]);
+	
+		printf("\n");
+	}
 	return 0;
 }
 
@@ -379,7 +383,7 @@ int main(int argc, char **argv) {
 		// Note Trouff : i dunno how to print the data sent for debugging purpose only.
 		printf("Sending : step %zu with size %zu & data : ", i, capturepackets[i].size);
 		for(size_t j = 0; j < capturepackets[i].size; j++)
-			printf("%x ", capturepackets[i].command[j]);
+			printf("%.2x ", capturepackets[i].command[j]);
 		printf("\n");
 
 		writecommand(camerahandle, capturepackets[i].command, capturepackets[i].size);
