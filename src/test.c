@@ -260,8 +260,6 @@ int main(int argc, char **argv) {
 	};
 
 	// Try to start streaming	
-	// fill capturepacketcount with number of packets to be sent
-	size_t capturepacketcount = 93;
 	struct commandframe capturepackets[] = {
 		// {10, { 0x0B, 0x01, 0x02, 0x00, 0x15, 0x00, 0x00, 0x00, 0x2C, 0x0B }	},
 		// {10, { 0x0b, 0x01, 0x02, 0x00, 0x15, 0x00, 0x00, 0x00, 0x2c, 0x03 }	},
@@ -373,10 +371,15 @@ int main(int argc, char **argv) {
 		{ 8, { 0x01, 0x00, 0x07, 0x00, 0xB0, 0x06, 0x00, 0x00 } },
 		// { 12, { 0x01, 0x01, 0x01, 0x00, 0xC8, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 } }
 
-		/* CONTINUE INSERTING PACKETS UNTIL THE END */
+		/* DO NOT REMOVE THIS LAST ONE! */
+		{ 0, { 0x0 } }
 	};
 
-	printf("Sending the capture command packets...\n");
+	size_t capturepacketcount = 0;
+	for(size_t i = 0; capturepackets[i].size != 0; i++)
+		capturepacketcount++;
+
+	printf("Count done, %i packets to send; sending the capture command packets...\n", capturepacketcount);
 	for(size_t i = 0; i < capturepacketcount; i++) {
 		// Please add a debug to have the output of the command sent please. 
 		// Note Trouff : i dunno how to print the data sent for debugging purpose only.
