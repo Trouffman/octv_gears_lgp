@@ -80,6 +80,10 @@ lelabel: err = libusb_bulk_transfer(camerahandle, CAMERA_ENDPOINT_ADDRESS_VIDEO_
 int readcapturesequence(struct commandframe **capturepackets,size_t *capturepacketcount) {
 	fprintf(stderr, "Reading capture sequence...\n");
 	FILE *f = fopen("capture_sequence", "r");
+	if(f == NULL) {
+		fprintf(stderr, "Failed to open file: capture_sequence!\n");
+		return -1;
+	}
 
 	size_t linebuffersize = 2048;
 	char *line = (char*)malloc(linebuffersize);
@@ -89,6 +93,7 @@ int readcapturesequence(struct commandframe **capturepackets,size_t *capturepack
 		// Just count the lines to begin with
 		linecount++;
 	}
+	*capturepacketcount = linecount;
 
 	// Parse
 	fseek(f, 0, SEEK_SET);
@@ -101,9 +106,13 @@ int readcapturesequence(struct commandframe **capturepackets,size_t *capturepack
 		tok = strtok(line, " ");
 		cp[commandi].expectanswer = atoi(tok);
 
+#pragma warning "CRASHES HERE IN STRTOL INTERNALLY!"
 		// Read bytes
 		while((tok = strtok(line, " ")) != NULL) {
-			int byte = atoi(tok);
+			// Skip leading zero because it seems strtol gets lost
+			if(*tok == '0')
+				tok++;
+			int byte = strtol(tok, NULL, 16);
 			cp[commandi].command[cp[commandi].size] = byte;
 			cp[commandi].size++;
 		}
