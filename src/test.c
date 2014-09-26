@@ -55,9 +55,14 @@ int readvideostream(libusb_device_handle *camerahandle, FILE *outputfile) {
 	memset(buffer, 0, 512);
 	static int transferred = 0;
 
-	int err = libusb_bulk_transfer(camerahandle, CAMERA_ENDPOINT_ADDRESS_VIDEO_CAPTURE, buffer, 512, &transferred, TIMEOUT);
+	int err = 0;
+lelabel: err= libusb_bulk_transfer(camerahandle, CAMERA_ENDPOINT_ADDRESS_VIDEO_CAPTURE, buffer, 512, &transferred, TIMEOUT);
 
 	if(err != 0) {
+		if(err == LIBUSB_ERROR_TIMEOUT) {
+			fprintf(stderr, "Timeout!\n");
+			goto lelabel;
+		}
 		fprintf(stderr,"Error while reading capture stream: '%s' - '%s' , data received: %i, crashing!\n", libusb_error_name(err), libusb_strerror(err),transferred);
 		return -1;
 	}
