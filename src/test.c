@@ -113,17 +113,17 @@ int readcapturesequence(struct commandframe **capturepackets,size_t *capturepack
 	memset(cp, 0, sizeof(struct commandframe) * linecount);
 	size_t commandi = 0;
 	while((linesize = getline(&line, &linebuffersize, f)) != -1)  {
-		char *tok = NULL;
-		tok = strtok(line, " ");
+		char *tok = line;
+		tok = strtok(tok, " ");
 		cp[commandi].expectanswer = atoi(tok);
 
-#pragma warning "CRASHES HERE IN STRTOL INTERNALLY!"
 		// Read bytes
-		while((tok = strtok(line, " ")) != NULL) {
+		while((tok = strtok(NULL, " ")) != NULL) {
 			// Skip leading zero because it seems strtol gets lost
-			if(*tok == '0')
-				tok++;
+			//if(*tok == '0')
+			//	tok++;
 			int byte = strtol(tok, NULL, 16);
+			//fprintf(stderr, "Byte: %.2x\n", byte);
 			cp[commandi].command[cp[commandi].size] = byte;
 			cp[commandi].size++;
 		}
@@ -137,8 +137,20 @@ int readcapturesequence(struct commandframe **capturepackets,size_t *capturepack
 }
 
 int main(int argc, char **argv) {
+	FILE *outputfile = NULL;
+	libusb_context *usbcontext = NULL;
+	libusb_device **devicelist;
+	libusb_device_handle *camerahandle = NULL;
+	struct commandframe *capturepackets = NULL;
+	size_t capturepacketcount = 0;
+	int err = 0;
+
 	check(argc >= 2, "You need to specify capture config file.");
 	captureconfigfile = argv[1];
+
+	err = readcapturesequence(&capturepackets, &capturepacketcount);
+	check(err == 0, "Error reading config packets!");
+	fprintf(stderr,"Config done, %zu packets read; sending the capture command packets...\n", capturepacketcount);
 
 	// Process:
 	// 1. Grab USB context
@@ -151,19 +163,16 @@ int main(int argc, char **argv) {
 
 
 	// 1. Grab USB context
-	libusb_context *usbcontext = NULL;
 	check(libusb_init(&usbcontext) == 0, "We DONT have the context");
 	fprintf(stderr,"We got the context\n");
 
 	libusb_set_debug(usbcontext, LIBUSB_LOG_LEVEL_WARNING);
 	
 	// 2. Query system devices
-	libusb_device **devicelist;
 	size_t devicecount = libusb_get_device_list(usbcontext, &devicelist);
 	check(devicecount != 0, "Error when counting devices!");
 
 	// 3. Figure out which one is the camera
-	libusb_device_handle *camerahandle = NULL;
 	for(size_t i = 0; i < devicecount; i++) {
 		libusb_device *dev = devicelist[i];	
 		struct libusb_device_descriptor desc;
@@ -211,14 +220,7 @@ int main(int argc, char **argv) {
 
 	
 	// Try to start streaming	
-	struct commandframe *capturepackets = NULL;
-	size_t capturepacketcount = 0;
-	int err = readcapturesequence(&capturepackets, &capturepacketcount);
-	check(err == 0, "Error reading config packets!");
-
-	fprintf(stderr,"Config done, %zu packets read; sending the capture command packets...\n", capturepacketcount);
 	
-
 	for(size_t i = 0; i < capturepacketcount; i++) {
 		fprintf(stderr,"Sending : step %zu with size %zu & data : ", i, capturepackets[i].size);
 		for(size_t j = 0; j < capturepackets[i].size; j++)
@@ -231,11 +233,11 @@ int main(int argc, char **argv) {
 	}
 
 	fprintf(stderr,"Capture stream sent, will try to capture stuff on other endpoint now...\n");
-	FILE *outputfile = fopen("capture.h264", "wb");
+	outputfile = fopen("capture.h264", "wb");
 	if(outputfile != NULL) { 
 		int running = 1;
 		while(running) {
-			int err = readvideostream(camerahandle, outputfile);
+			err = readvideostream(camerahandle, outputfile);
 			if(err != 0) {
 				running = 0;
 				fprintf(stderr,"ERROR WITH STREAM CAPTURE, ABORT!\n");
