@@ -4,8 +4,16 @@
 #include <memory.h>
 #include <unistd.h>
 
+#define check(A, M, ...) \
+		do { \
+			if(!(A)) { \
+				fprintf(stderr, "Check failed at %s:%d: " M "\n", __FILE__, __LINE__, ##__VA_ARGS__); \
+				goto error; \
+			} \
+		} while(0)
+
 #define CAMERA_VENDOR				0x07ca
-#define CAMERA_PRODUCT				0x0875	
+#define CAMERA_PRODUCT				0x0875
 #define CAMERA_CONFIGURATION		1
 #define CAMERA_INTERACE				0
 
@@ -20,6 +28,8 @@ struct commandframe {
 	size_t size;
 	unsigned char command[64];
 };
+
+static const char *captureconfigfile = NULL;
 
 int writecommand(libusb_device_handle *camerahandle, unsigned char* commandbuffer, size_t size) {
 	static int transferred = 0;
@@ -80,7 +90,7 @@ lelabel: err = libusb_bulk_transfer(camerahandle, CAMERA_ENDPOINT_ADDRESS_VIDEO_
 
 int readcapturesequence(struct commandframe **capturepackets,size_t *capturepacketcount) {
 	fprintf(stderr, "Reading capture sequence...\n");
-	FILE *f = fopen("capture_sequence", "r");
+	FILE *f = fopen(captureconfigfile, "r");
 	if(f == NULL) {
 		fprintf(stderr, "Failed to open file: capture_sequence!\n");
 		return -1;
@@ -127,6 +137,9 @@ int readcapturesequence(struct commandframe **capturepackets,size_t *capturepack
 }
 
 int main(int argc, char **argv) {
+	check(argc >= 2, "You need to specify capture config file.");
+	captureconfigfile = argv[1];
+
 	// Process:
 	// 1. Grab USB context
 	// 2. Query system devices
@@ -139,23 +152,15 @@ int main(int argc, char **argv) {
 
 	// 1. Grab USB context
 	libusb_context *usbcontext = NULL;
-	if(libusb_init(&usbcontext) == 0)
-		fprintf(stderr,"We got the context\n");
-	else {
-		fprintf(stderr,"We DONT have the context\n");
-		exit(1);
-	}
+	check(libusb_init(&usbcontext) == 0, "We DONT have the context");
+	fprintf(stderr,"We got the context\n");
 
 	libusb_set_debug(usbcontext, LIBUSB_LOG_LEVEL_WARNING);
-
 	
 	// 2. Query system devices
 	libusb_device **devicelist;
 	size_t devicecount = libusb_get_device_list(usbcontext, &devicelist);
-	if(devicecount < 0) {
-		fprintf(stderr,"Error when counting devices!\n");
-		exit(-1);
-	}
+	check(devicecount != 0, "Error when counting devices!");
 
 	// 3. Figure out which one is the camera
 	libusb_device_handle *camerahandle = NULL;
@@ -173,28 +178,15 @@ int main(int argc, char **argv) {
 		}
 	}
 
-
-	if(camerahandle == NULL) {
-		fprintf(stderr,"Couldn't obtain camera handle.\n");
-		exit(-2);
-	}
-
+	check(camerahandle != NULL, "Couldn't obtain camera handle.");
 
 	// 4. Configure the camera
-	if(libusb_set_configuration(camerahandle, CAMERA_CONFIGURATION) != 0) {
-		fprintf(stderr,"Failed to set configuration!\n");
-		exit(-3);
-	}
-
+	check(libusb_set_configuration(camerahandle, CAMERA_CONFIGURATION) == 0,"Failed to set configuration!");
 
 	// 5. Claim interfaces
-	if(libusb_claim_interface(camerahandle, CAMERA_INTERACE) != 0) {
-		fprintf(stderr,"Failed to claim interface!\n");
-		exit(-4);
-	}
+	check(libusb_claim_interface(camerahandle, CAMERA_INTERACE) == 0,"Failed to claim interface!");
 
 	// 6. Comm
-
 	unsigned char id_00100[] = { 0x0b, 0x01, 0x02, 0x00, 0x15, 0x00, 0x00, 0x00, 0x2c, 0x0b  };
 	size_t id_00100_s = 10;	
 	unsigned char id_00101[] = { 0x0b, 0x01, 0x02, 0x00, 0x15, 0x00, 0x00, 0x00, 0x2c, 0x03  };
@@ -222,10 +214,7 @@ int main(int argc, char **argv) {
 	struct commandframe *capturepackets = NULL;
 	size_t capturepacketcount = 0;
 	int err = readcapturesequence(&capturepackets, &capturepacketcount);
-	if(err != 0) {
-		fprintf(stderr,"Error reading config packets!\n");
-		exit(-1);
-	}
+	check(err == 0, "Error reading config packets!");
 
 	fprintf(stderr,"Config done, %zu packets read; sending the capture command packets...\n", capturepacketcount);
 	
@@ -257,6 +246,7 @@ int main(int argc, char **argv) {
 	}	
 
 	// 7. Cleanup
+error:
 	if(outputfile != NULL) {
 		fprintf(stderr,"Closing capture file...\n");
 		fclose(outputfile);
@@ -265,9 +255,13 @@ int main(int argc, char **argv) {
 	free(capturepackets);
 
 	fprintf(stderr,"Closing handles...\n");
-	libusb_release_interface(camerahandle, CAMERA_INTERACE);
-	libusb_close(camerahandle);
-	libusb_free_device_list(devicelist, 1); // 1 = unref devices
+	if(camerahandle != NULL) {
+		libusb_release_interface(camerahandle, CAMERA_INTERACE);
+		libusb_close(camerahandle);
+	}
+	if(devicelist != NULL)
+		libusb_free_device_list(devicelist, 1); // 1 = unref devices
+
 	fprintf(stderr,"Bye\n");
 	libusb_exit(usbcontext);
 	return 0;
