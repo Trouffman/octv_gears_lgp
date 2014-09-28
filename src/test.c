@@ -230,8 +230,6 @@ int main(int argc, char **argv) {
 	
 
 	for(size_t i = 0; i < capturepacketcount; i++) {
-		// Please add a debug to have the output of the command sent please. 
-		// Note Trouff : i dunno how to print the data sent for debugging purpose only.
 		fprintf(stderr,"Sending : step %zu with size %zu & data : ", i, capturepackets[i].size);
 		for(size_t j = 0; j < capturepackets[i].size; j++)
 			fprintf(stderr,"%.2x ", capturepackets[i].command[j]);
@@ -240,7 +238,6 @@ int main(int argc, char **argv) {
 		writecommand(camerahandle, capturepackets[i].command, capturepackets[i].size);
 		if(capturepackets[i].expectanswer)
 			readstatus(camerahandle);
-	//	sleep(5);
 	}
 
 	fprintf(stderr,"Capture stream sent, will try to capture stuff on other endpoint now...\n");
@@ -270,7 +267,7 @@ int main(int argc, char **argv) {
 	libusb_release_interface(camerahandle, CAMERA_INTERACE);
 	libusb_close(camerahandle);
 	libusb_free_device_list(devicelist, 1); // 1 = unref devices
-	libusb_exit(usbcontext);
 	fprintf(stderr,"Bye\n");
+	libusb_exit(usbcontext);
 	return 0;
 }
