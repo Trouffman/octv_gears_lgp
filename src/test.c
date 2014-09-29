@@ -58,7 +58,7 @@ int readstatus(libusb_device_handle *camerahandle) {
 	if(transferred == 0) {
 		fprintf(stderr,"Status NOT received; TIMEOUT!\n");
 	} else {
-		fprintf(stderr,"Status received, bytes %i!, value: ", transferred);
+		fprintf(stderr,"Received Status : bytes %i!, value :", transferred);
 		for(size_t i = 0; i < transferred; i++)
 			fprintf(stderr,"%.2x ", buffer[i]);
 	
@@ -126,6 +126,7 @@ int readcapturesequence(struct commandframe **capturepackets,size_t *capturepack
 			//fprintf(stderr, "Byte: %.2x\n", byte);
 			cp[commandi].command[cp[commandi].size] = byte;
 			cp[commandi].size++;
+			// Trouff : If there is a trailing space at the end the size will be incremented too. and this send the data length + 1
 		}
 		commandi++;
 	}
@@ -222,7 +223,7 @@ int main(int argc, char **argv) {
 	// Try to start streaming	
 	
 	for(size_t i = 0; i < capturepacketcount; i++) {
-		fprintf(stderr,"Sending : step %zu with size %zu & data : ", i, capturepackets[i].size);
+		fprintf(stderr,"Sending : step %zu with size %zu :", i, capturepackets[i].size);
 		for(size_t j = 0; j < capturepackets[i].size; j++)
 			fprintf(stderr,"%.2x ", capturepackets[i].command[j]);
 		fprintf(stderr,"\n");
