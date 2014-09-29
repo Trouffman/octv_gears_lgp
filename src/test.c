@@ -126,7 +126,7 @@ int readcapturesequence(struct commandframe **capturepackets,size_t *capturepack
 			//fprintf(stderr, "Byte: %.2x\n", byte);
 			cp[commandi].command[cp[commandi].size] = byte;
 			cp[commandi].size++;
-			// Trouff : If there is a trailing space at the end the size will be incremented too. and this send the data length + 1
+			// Trouff : If there is a trailing space at the end the size will be incremented too. This send the data length + 1
 		}
 		commandi++;
 	}
