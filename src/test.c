@@ -231,6 +231,8 @@ int main(int argc, char **argv) {
 		writecommand(camerahandle, capturepackets[i].command, capturepackets[i].size);
 		if(capturepackets[i].expectanswer)
 			readstatus(camerahandle);
+		// waiting a bit before sending the next data.
+		// sleep(1);
 	}
 
 	fprintf(stderr,"Capture stream sent, will try to capture stuff on other endpoint now...\n");
