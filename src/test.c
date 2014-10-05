@@ -18,6 +18,7 @@
 #define CAMERA_INTERACE				0
 
 #define CAMERA_ENDPOINT_ADDRESS_VIDEO_CAPTURE		0x81
+#define CAMERA_ENDPOINT_ADDRESS_VIDEO_CONTROL		0x02
 #define CAMERA_ENDPOINT_ADDRESS_CONTROL				0x04
 #define CAMERA_ENDPOINT_ADDRESS_STATUS_RESPONSE		0x83
 
@@ -25,6 +26,7 @@
 
 struct commandframe {
 	size_t expectanswer;
+	size_t endpoint;
 	size_t size;
 	unsigned char command[64];
 };
@@ -35,7 +37,18 @@ int writecommand(libusb_device_handle *camerahandle, unsigned char* commandbuffe
 	static int transferred = 0;
 	int err = libusb_bulk_transfer(camerahandle, CAMERA_ENDPOINT_ADDRESS_CONTROL, commandbuffer, size, &transferred, TIMEOUT);
 	if(err != 0) {
-		fprintf(stderr, "Error while sending command: '%s' - '%s',  data sent: %i, data transferred: %i, crashing!\n", libusb_error_name(err), libusb_strerror(err), 512, transferred);
+		fprintf(stderr, "Error while sending command: '%s' - '%s', data sent: %i, data transferred: %i, on endpoint 0x04 crashing!\n", libusb_error_name(err), libusb_strerror(err), 512, transferred);
+		exit(-5);
+	} else {
+		return 0;
+	}
+}
+
+int writevideocommand(libusb_device_handle *camerahandle, unsigned char* commandbuffer, size_t size) {
+	static int transferred = 0;
+	int err = libusb_bulk_transfer(camerahandle, CAMERA_ENDPOINT_ADDRESS_VIDEO_CONTROL, commandbuffer, size, &transferred, TIMEOUT);
+	if(err != 0) {
+		fprintf(stderr, "Error while sending command: '%s' - '%s', data sent: %i, data transferred: %i, on endpoint 0x02 crashing!\n", libusb_error_name(err), libusb_strerror(err), 512, transferred);
 		exit(-5);
 	} else {
 		return 0;
@@ -116,7 +129,12 @@ int readcapturesequence(struct commandframe **capturepackets,size_t *capturepack
 		char *tok = line;
 		tok = strtok(tok, " ");
 		cp[commandi].expectanswer = atoi(tok);
-
+		
+		// Added to support destination Endpoint for the sequence capture file
+		tok = strtok(NULL, " ");
+		cp[commandi].endpoint = atoi(tok);
+		// fprintf(stderr, "Endpoint : %zu ", cp[commandi].endpoint);
+		
 		// Read bytes
 		while((tok = strtok(NULL, " ")) != NULL) {
 			// Skip leading zero because it seems strtol gets lost
@@ -126,7 +144,7 @@ int readcapturesequence(struct commandframe **capturepackets,size_t *capturepack
 			//fprintf(stderr, "Byte: %.2x\n", byte);
 			cp[commandi].command[cp[commandi].size] = byte;
 			cp[commandi].size++;
-			// Trouff : If there is a trailing space at the end the size will be incremented too. This send the data length + 1
+			// If there is a trailing space at the end the size will be incremented too. This send the data length + 1 - NB : should be corrected.
 		}
 		commandi++;
 	}
@@ -227,12 +245,17 @@ int main(int argc, char **argv) {
 		for(size_t j = 0; j < capturepackets[i].size; j++)
 			fprintf(stderr,"%.2x ", capturepackets[i].command[j]);
 		fprintf(stderr,"\n");
-
-		writecommand(camerahandle, capturepackets[i].command, capturepackets[i].size);
-		if(capturepackets[i].expectanswer)
-			readstatus(camerahandle);
-		// waiting a bit before sending the next data.
-		// sleep(1);
+		
+		if(capturepackets[i].endpoint == 2) {
+			writevideocommand(camerahandle, capturepackets[i].command, capturepackets[i].size);
+			if(capturepackets[i].expectanswer)
+				readstatus(camerahandle);
+		}
+		else {
+			writecommand(camerahandle, capturepackets[i].command, capturepackets[i].size);
+			if(capturepackets[i].expectanswer)
+				readstatus(camerahandle);
+		}
 	}
 
 	fprintf(stderr,"Capture stream sent, will try to capture stuff on other endpoint now...\n");
