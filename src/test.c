@@ -37,7 +37,7 @@ int writecommand(libusb_device_handle *camerahandle, unsigned char* commandbuffe
 	static int transferred = 0;
 	int err = libusb_bulk_transfer(camerahandle, CAMERA_ENDPOINT_ADDRESS_CONTROL, commandbuffer, size, &transferred, TIMEOUT);
 	if(err != 0) {
-		fprintf(stderr, "Error while sending command: '%s' - '%s', data sent: %i, data transferred: %i, on endpoint 0x04 crashing!\n", libusb_error_name(err), libusb_strerror(err), 512, transferred);
+		fprintf(stderr, "Error while sending command: '%s' - '%s', data sent: %i, data transferred: %i, on endpoint 0x04, crashing!\n", libusb_error_name(err), libusb_strerror(err), 512, transferred);
 		exit(-5);
 	} else {
 		return 0;
@@ -48,7 +48,7 @@ int writevideocommand(libusb_device_handle *camerahandle, unsigned char* command
 	static int transferred = 0;
 	int err = libusb_bulk_transfer(camerahandle, CAMERA_ENDPOINT_ADDRESS_VIDEO_CONTROL, commandbuffer, size, &transferred, TIMEOUT);
 	if(err != 0) {
-		fprintf(stderr, "Error while sending command: '%s' - '%s', data sent: %i, data transferred: %i, on endpoint 0x02 crashing!\n", libusb_error_name(err), libusb_strerror(err), 512, transferred);
+		fprintf(stderr, "Error while sending command: '%s' - '%s', data sent: %i, data transferred: %i, on endpoint 0x02, crashing!\n", libusb_error_name(err), libusb_strerror(err), 512, transferred);
 		exit(-5);
 	} else {
 		return 0;
@@ -241,13 +241,13 @@ int main(int argc, char **argv) {
 	// Try to start streaming	
 	
 	for(size_t i = 0; i < capturepacketcount; i++) {
-		fprintf(stderr,"Sending : step %zu with size %zu :", i, capturepackets[i].size);
+		fprintf(stderr,"Sending : step %zu on endpoint %zu with size %zu :", i, capturepackets[i].endpoint, capturepackets[i].size);
 		for(size_t j = 0; j < capturepackets[i].size; j++)
 			fprintf(stderr,"%.2x ", capturepackets[i].command[j]);
 		fprintf(stderr,"\n");
 		
 		if(capturepackets[i].endpoint == 2) {
-			writevideocommand(camerahandle, capturepackets[i].command, capturepackets[i].size);
+			writevideocommand(camerahandle, capturepackets[i].command, 512);
 			if(capturepackets[i].expectanswer)
 				readstatus(camerahandle);
 		}
@@ -294,3 +294,4 @@ error:
 	libusb_exit(usbcontext);
 	return 0;
 }
+
