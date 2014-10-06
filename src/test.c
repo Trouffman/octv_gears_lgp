@@ -95,7 +95,7 @@ int readvideostatus(libusb_device_handle *camerahandle) {
 	if(transferred == 0) {
 		fprintf(stderr,"Status NOT received; TIMEOUT!\n");
 	} else {
-		fprintf(stderr,"Received Status : bytes %i!, value :", transferred);
+		fprintf(stderr,"Received Status EP 81 : bytes %i!, value :", transferred);
 		for(size_t i = 0; i < transferred; i++)
 			fprintf(stderr,"%.2x ", buffer[i]);
 	
@@ -105,12 +105,12 @@ int readvideostatus(libusb_device_handle *camerahandle) {
 }
 
 int readvideostream(libusb_device_handle *camerahandle, FILE *outputfile) {
-	static unsigned char buffer[512];
-	memset(buffer, 0, 512);
+	static unsigned char buffer[32768];
+	memset(buffer, 0, 32768);
 	static int transferred = 0;
 
 	int err = 0;
-lelabel: err = libusb_bulk_transfer(camerahandle, CAMERA_ENDPOINT_ADDRESS_VIDEO_CAPTURE, buffer, 512, &transferred, TIMEOUT);
+lelabel: err = libusb_bulk_transfer(camerahandle, CAMERA_ENDPOINT_ADDRESS_VIDEO_CAPTURE, buffer, 32768, &transferred, TIMEOUT);
 
 	if(err != 0) {
 		if(err == LIBUSB_ERROR_TIMEOUT) {
@@ -272,14 +272,18 @@ int main(int argc, char **argv) {
 		
 		if(capturepackets[i].endpoint == 2) {
 			writevideocommand(camerahandle, capturepackets[i].command, capturepackets[i].size);
-			if(capturepackets[i].expectanswer)
+			if(capturepackets[i].expectanswer) {
 				readvideostatus(camerahandle);
+				// Wait a bit for next command.
+				sleep(1);
+			}	
 		}
 		else {
 			writecommand(camerahandle, capturepackets[i].command, capturepackets[i].size);
 			if(capturepackets[i].expectanswer)
 				readstatus(camerahandle);
 		}
+
 	}
 
 	fprintf(stderr,"Capture stream sent, will try to capture stuff on other endpoint now...\n");
@@ -318,4 +322,3 @@ error:
 	libusb_exit(usbcontext);
 	return 0;
 }
-
