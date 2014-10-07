@@ -28,7 +28,7 @@ struct commandframe {
 	size_t expectanswer;
 	size_t endpoint;
 	size_t size;
-	unsigned char command[64];
+	unsigned char command[32768];
 };
 
 static const char *captureconfigfile = NULL;
