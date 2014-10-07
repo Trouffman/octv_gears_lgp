@@ -60,7 +60,6 @@ int readstatus(libusb_device_handle *camerahandle) {
 	memset(buffer, 0, 512);
 	static int transferred = 0;
 
-
 	int err = libusb_bulk_transfer(camerahandle, CAMERA_ENDPOINT_ADDRESS_STATUS_RESPONSE, buffer, 512, &transferred, TIMEOUT);
 
 	if(err != 0 && err != LIBUSB_ERROR_TIMEOUT) {
@@ -160,7 +159,7 @@ int readcapturesequence(struct commandframe **capturepackets,size_t *capturepack
 		// fprintf(stderr, "Endpoint : %zu ", cp[commandi].endpoint);
 		
 		// Read bytes
-		while((tok = strtok(NULL, " ")) != NULL) {
+		while((tok = strtok(NULL, " \n")) != NULL) {
 			// Skip leading zero because it seems strtol gets lost
 			//if(*tok == '0')
 			//	tok++;
