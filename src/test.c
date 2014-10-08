@@ -70,7 +70,7 @@ int readstatus(libusb_device_handle *camerahandle) {
 	if(transferred == 0) {
 		fprintf(stderr,"Status NOT received; TIMEOUT!\n");
 	} else {
-		fprintf(stderr,"Received Status : bytes %i!, value :", transferred);
+		fprintf(stderr,"Received Status Control : bytes %i!, value :", transferred);
 		for(size_t i = 0; i < transferred; i++)
 			fprintf(stderr,"%.2x ", buffer[i]);
 	
@@ -94,7 +94,7 @@ int readvideostatus(libusb_device_handle *camerahandle) {
 	if(transferred == 0) {
 		fprintf(stderr,"Status NOT received; TIMEOUT!\n");
 	} else {
-		fprintf(stderr,"Received Status EP 81 : bytes %i!, value :", transferred);
+		fprintf(stderr,"Received Status Video Control : bytes %i!, value :", transferred);
 		for(size_t i = 0; i < transferred; i++)
 			fprintf(stderr,"%.2x ", buffer[i]);
 	
@@ -264,22 +264,26 @@ int main(int argc, char **argv) {
 	// Try to start streaming	
 	
 	for(size_t i = 0; i < capturepacketcount; i++) {
-		fprintf(stderr,"Sending : step %zu on endpoint %zu with size %zu :", i, capturepackets[i].endpoint, capturepackets[i].size);
-		for(size_t j = 0; j < capturepackets[i].size; j++)
-			fprintf(stderr,"%.2x ", capturepackets[i].command[j]);
-		fprintf(stderr,"\n");
-		
-		if(capturepackets[i].endpoint == 2) {
-			writevideocommand(camerahandle, capturepackets[i].command, capturepackets[i].size);
-			if(capturepackets[i].expectanswer) {
+		// Check if we want to send a request or just listen to one.
+		if(capturepackets[i].size > 0) {
+			fprintf(stderr,"Sending : step %zu on endpoint %zu with size %zu :", i, capturepackets[i].endpoint, capturepackets[i].size);
+			for(size_t j = 0; j < capturepackets[i].size; j++)
+				fprintf(stderr,"%.2x ", capturepackets[i].command[j]);
+			fprintf(stderr,"\n");
+			
+			if(capturepackets[i].endpoint == 2) {
+				writevideocommand(camerahandle, capturepackets[i].command, capturepackets[i].size);
+				if(capturepackets[i].expectanswer)
+					readvideostatus(camerahandle);
+			} else {
+				writecommand(camerahandle, capturepackets[i].command, capturepackets[i].size);
+				if(capturepackets[i].expectanswer)
+					readstatus(camerahandle);
+			}
+		} else {
+			if(capturepackets[i].endpoint == 81 && capturepackets[i].expectanswer)
 				readvideostatus(camerahandle);
-				// Wait a bit for next command.
-				sleep(1);
-			}	
-		}
-		else {
-			writecommand(camerahandle, capturepackets[i].command, capturepackets[i].size);
-			if(capturepackets[i].expectanswer)
+			if(capturepackets[i].endpoint == 83 && capturepackets[i].expectanswer)
 				readstatus(camerahandle);
 		}
 
