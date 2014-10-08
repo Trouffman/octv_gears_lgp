@@ -68,7 +68,7 @@ int readstatus(libusb_device_handle *camerahandle) {
 	}
 
 	if(transferred == 0) {
-		fprintf(stderr,"Status NOT received; TIMEOUT!\n");
+		fprintf(stderr,"Status NOT received (EP. 83); TIMEOUT!\n");
 	} else {
 		fprintf(stderr,"Received Status Control : bytes %i!, value :", transferred);
 		for(size_t i = 0; i < transferred; i++)
@@ -92,7 +92,7 @@ int readvideostatus(libusb_device_handle *camerahandle) {
 	}
 
 	if(transferred == 0) {
-		fprintf(stderr,"Status NOT received; TIMEOUT!\n");
+		fprintf(stderr,"Status NOT received (EP. 81); TIMEOUT!\n");
 	} else {
 		fprintf(stderr,"Received Status Video Control : bytes %i!, value :", transferred);
 		for(size_t i = 0; i < transferred; i++)
@@ -286,7 +286,6 @@ int main(int argc, char **argv) {
 			if(capturepackets[i].endpoint == 83 && capturepackets[i].expectanswer)
 				readstatus(camerahandle);
 		}
-
 	}
 
 	fprintf(stderr,"Capture stream sent, will try to capture stuff on other endpoint now...\n");
