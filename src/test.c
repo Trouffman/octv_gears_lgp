@@ -245,7 +245,7 @@ int main(int argc, char **argv) {
 	unsigned char id_00102[] = { 0x0b, 0x01, 0x02, 0x00, 0x15, 0x00, 0x00, 0x00, 0x2c, 0x05  };
 	size_t id_00102_s = 10;
 
-	// Boot
+	// Boot (LED show)
 	fprintf(stderr,"Init procedure...\n");
 	writecommand(camerahandle, id_00100, id_00100_s);
 	readstatus(camerahandle);
@@ -288,19 +288,19 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	fprintf(stderr,"Capture stream sent, will try to capture stuff on other endpoint now...\n");
-	outputfile = fopen("capture.h264", "wb");
-	if(outputfile != NULL) { 
-		int running = 1;
-		while(running) {
-			err = readvideostream(camerahandle, outputfile);
-			if(err != 0) {
-				running = 0;
-				fprintf(stderr,"ERROR WITH STREAM CAPTURE, ABORT!\n");
+		fprintf(stderr,"Capture stream sent, will try to capture stuff on other endpoint now...\n");
+		outputfile = fopen("capture.h264", "wb");
+		if(outputfile != NULL) { 
+			int running = 1;
+			while(running) {
+				err = readvideostream(camerahandle, outputfile);
+				if(err != 0) {
+					running = 0;
+					fprintf(stderr,"ERROR WITH STREAM CAPTURE, ABORT!\n");
+				}
 			}
-		}
-	} else {
-		fprintf(stderr,"Failed to open capture file, obviously - aborting!\n");
+		} else {
+			fprintf(stderr,"Failed to open capture file, obviously - aborting!\n");
 	}	
 
 	// 7. Cleanup
