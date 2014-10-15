@@ -73,8 +73,33 @@ int readstatus(libusb_device_handle *camerahandle) {
 		fprintf(stderr,"Received Status Control : bytes %i!, value :", transferred);
 		for(size_t i = 0; i < transferred; i++)
 			fprintf(stderr,"%.2x ", buffer[i]);
-	
 		fprintf(stderr,"\n");
+	}
+	return 0;
+}
+
+int readstatus_data(libusb_device_handle *camerahandle, char *response_buffer) {
+	static unsigned char buffer[512];
+	memset(buffer, 0, 512);
+	static int transferred = 0;
+
+	int err = libusb_bulk_transfer(camerahandle, CAMERA_ENDPOINT_ADDRESS_STATUS_RESPONSE, buffer, 512, &transferred, TIMEOUT);
+
+	if(err != 0 && err != LIBUSB_ERROR_TIMEOUT) {
+		fprintf(stderr, "Error while reading command: '%s' - '%s' , data received: %i, crashing!\n", libusb_error_name(err), libusb_strerror(err),transferred);
+		exit(-5);
+	}
+
+	if(transferred == 0) {
+		fprintf(stderr,"Status NOT received (EP. 83); TIMEOUT!\n");
+	} else {
+		fprintf(stderr,"Received Status Control : bytes %i!, value :", transferred);
+		for(size_t i = 0; i < transferred; i++) {
+			fprintf(stderr,"%.2x ", buffer[i]);
+		}
+		fprintf(stderr,"\n");
+		memcpy(response_buffer,buffer,transferred);
+		fprintf(stderr,"Data copied to returned buffer.");
 	}
 	return 0;
 }
@@ -95,8 +120,9 @@ int readvideostatus(libusb_device_handle *camerahandle) {
 		fprintf(stderr,"Status NOT received (EP. 81); TIMEOUT!\n");
 	} else {
 		fprintf(stderr,"Received Status Video Control : bytes %i!, value :", transferred);
-		for(size_t i = 0; i < transferred; i++)
-			fprintf(stderr,"%.2x ", buffer[i]);
+		//for(size_t i = 0; i < transferred; i++)
+		//	fprintf(stderr,"%.2x ", buffer[i]);
+
 	
 		fprintf(stderr,"\n");
 	}
@@ -167,7 +193,7 @@ int readcapturesequence(struct commandframe **capturepackets,size_t *capturepack
 			//fprintf(stderr, "Byte: %.2x\n", byte);
 			cp[commandi].command[cp[commandi].size] = byte;
 			cp[commandi].size++;
-			// If there is a trailing space at the end the size will be incremented too. This send the data length + 1 - NB : should be corrected.
+
 		}
 		commandi++;
 	}
@@ -177,6 +203,8 @@ int readcapturesequence(struct commandframe **capturepackets,size_t *capturepack
 
 	return 0;
 }
+
+
 
 int main(int argc, char **argv) {
 	FILE *outputfile = NULL;
@@ -200,8 +228,11 @@ int main(int argc, char **argv) {
 	// 3. Figure out which one is the camera
 	// 4. Configure the camera
 	// 5. Claim interfaces
-	// 6. Comm
-	// 7. Cleanup
+	// 6. Initialization
+	// 7. Capture
+	// 8. Cleanup
+
+
 
 
 	// 1. Grab USB context
@@ -237,7 +268,8 @@ int main(int argc, char **argv) {
 	// 5. Claim interfaces
 	check(libusb_claim_interface(camerahandle, CAMERA_INTERACE) == 0,"Failed to claim interface!");
 
-	// 6. Comm
+	// 6. Initialization sequence
+
 	unsigned char id_00100[] = { 0x0b, 0x01, 0x02, 0x00, 0x15, 0x00, 0x00, 0x00, 0x2c, 0x0b  };
 	size_t id_00100_s = 10;	
 	unsigned char id_00101[] = { 0x0b, 0x01, 0x02, 0x00, 0x15, 0x00, 0x00, 0x00, 0x2c, 0x03  };
@@ -245,7 +277,20 @@ int main(int argc, char **argv) {
 	unsigned char id_00102[] = { 0x0b, 0x01, 0x02, 0x00, 0x15, 0x00, 0x00, 0x00, 0x2c, 0x05  };
 	size_t id_00102_s = 10;
 
-	// Boot (LED show)
+	// Frames Data with unified IDs
+
+	//unsigned char id_40009[] = { 0x01, 0x01, 0x01, 0x00, 0x00, 0x08, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00 };
+	//size_t id_40009_s = 12;
+
+	//unsigned char id_40007[] = { 0x01, 0x00, 0x07, 0x00, 0xB0, 0x06, 0x00, 0x00 };
+	//size_t id_40007_s = 8;
+
+	// Answer data 
+	//unsigned char id_30010[] = { 0x07, 0x00, 0x00, 0x00 };
+	//size_t id_30010_s = 4;
+
+
+	// Boot
 	fprintf(stderr,"Init procedure...\n");
 	writecommand(camerahandle, id_00100, id_00100_s);
 	readstatus(camerahandle);
@@ -261,13 +306,14 @@ int main(int argc, char **argv) {
 	fprintf(stderr,"Done\n");
 
 	
-	// Try to start streaming	
-	
+	// Send the initialization sequence	
+
+
 	for(size_t i = 0; i < capturepacketcount; i++) {
 		// Check if we want to send a request or just listen to one.
 		if(capturepackets[i].size > 0) {
 			fprintf(stderr,"Sending : step %zu on endpoint %zu with size %zu :", i, capturepackets[i].endpoint, capturepackets[i].size);
-			for(size_t j = 0; j < capturepackets[i].size; j++)
+			for(size_t j = 0; j < capturepackets[i].size && j < 64 ; j++)
 				fprintf(stderr,"%.2x ", capturepackets[i].command[j]);
 			fprintf(stderr,"\n");
 			
@@ -288,22 +334,65 @@ int main(int argc, char **argv) {
 		}
 	}
 
-		fprintf(stderr,"Capture stream sent, will try to capture stuff on other endpoint now...\n");
-		outputfile = fopen("capture.h264", "wb");
-		if(outputfile != NULL) { 
-			int running = 1;
-			while(running) {
-				err = readvideostream(camerahandle, outputfile);
-				if(err != 0) {
-					running = 0;
-					fprintf(stderr,"ERROR WITH STREAM CAPTURE, ABORT!\n");
-				}
+	// 7. Capturing video
+	// Adding logic to get video feed
+	fprintf(stderr,"Capture procedure...\n");
+
+	unsigned char id_40001[] = { 0x01, 0x00, 0x01, 0x00, 0x00, 0x08, 0x00, 0x00 };
+	size_t id_40001_s = 8;
+	
+	unsigned char response_buffer[512];
+	memset(response_buffer, 0, 512);
+	unsigned char videoready_received = 0;
+	
+	unsigned char videoready_response[] = { 0x07, 0x00, 0x01, 0x00 };
+	unsigned char xxyyzz[3];
+	memset(xxyyzz, 0, 3);
+	unsigned char ttss[2];
+	memset(ttss, 0, 2);
+	
+	int do_next = 0;
+	while ( do_next == 0 ) {
+		fprintf(stderr,"Sending data video handshake...\n");
+		writecommand(camerahandle, id_40001, id_40001_s);
+		readstatus_data(camerahandle, response_buffer);
+		
+		unsigned char countdown = sizeof(videoready_response);
+		for(size_t i = 0; i < sizeof(videoready_response); i++) {
+			if(response_buffer[i] == videoready_response[i]) countdown--; 
+		}
+		
+		if(countdown == 0) {
+			// videoready received
+			if(videoready_received) {
+				// videoready received twice
+				fprintf(stderr,"Video ready received!\n");
+				
+				memcpy(xxyyzz,response_buffer+2,1);
+				fprintf(stderr,"%.2x ", xxyyzz[0]);
+			} else {
+				videoready_received++;
 			}
-		} else {
-			fprintf(stderr,"Failed to open capture file, obviously - aborting!\n");
+		}
+		
+	}
+	
+	fprintf(stderr,"Capture stream sent, will try to capture stuff on other endpoint now...\n");
+	outputfile = fopen("capture.h264", "w+b");
+	if(outputfile != NULL) { 
+		int running = 1;
+		while(running) {
+			err = readvideostream(camerahandle, outputfile);
+			if(err != 0) {
+				running = 0;
+				fprintf(stderr,"ERROR WITH STREAM CAPTURE, ABORT!\n");
+			}
+		}
+	} else {
+		fprintf(stderr,"Failed to open capture file, obviously - aborting!\n");
 	}	
 
-	// 7. Cleanup
+	// 8. Cleanup
 error:
 	if(outputfile != NULL) {
 		fprintf(stderr,"Closing capture file...\n");
