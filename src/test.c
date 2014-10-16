@@ -24,6 +24,8 @@
 
 #define TIMEOUT		1000
 
+#define DEBUG		1
+
 struct commandframe {
 	size_t expectanswer;
 	size_t endpoint;
@@ -35,6 +37,16 @@ static const char *captureconfigfile = NULL;
 
 int writecommand(libusb_device_handle *camerahandle, unsigned char* commandbuffer, size_t size) {
 	static int transferred = 0;
+	
+	// Debug only
+	if (DEBUG) {
+		fprintf(stderr,"Sending : ");
+		for(size_t j = 0; j < sizeof(commandbuffer) ; j++)
+			fprintf(stderr,"%.2x ", commandbuffer[j]);
+		fprintf(stderr,"\n");
+	}
+	// End Debug only
+
 	int err = libusb_bulk_transfer(camerahandle, CAMERA_ENDPOINT_ADDRESS_CONTROL, commandbuffer, size, &transferred, TIMEOUT);
 	if(err != 0) {
 		fprintf(stderr, "Error while sending command: '%s' - '%s', data sent: %i, data transferred: %i, on endpoint 0x04, crashing!\n", libusb_error_name(err), libusb_strerror(err), 512, transferred);
@@ -99,7 +111,7 @@ int readstatus_data(libusb_device_handle *camerahandle, char *response_buffer) {
 		}
 		fprintf(stderr,"\n");
 		memcpy(response_buffer,buffer,transferred);
-		fprintf(stderr,"Data copied to returned buffer.");
+		fprintf(stderr,"Data copied to returned buffer.\n");
 	}
 	return 0;
 }
@@ -282,8 +294,6 @@ int main(int argc, char **argv) {
 	//unsigned char id_40009[] = { 0x01, 0x01, 0x01, 0x00, 0x00, 0x08, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00 };
 	//size_t id_40009_s = 12;
 
-	//unsigned char id_40007[] = { 0x01, 0x00, 0x07, 0x00, 0xB0, 0x06, 0x00, 0x00 };
-	//size_t id_40007_s = 8;
 
 	// Answer data 
 	//unsigned char id_30010[] = { 0x07, 0x00, 0x00, 0x00 };
@@ -291,6 +301,7 @@ int main(int argc, char **argv) {
 
 
 	// Boot
+	/*
 	fprintf(stderr,"Init procedure...\n");
 	writecommand(camerahandle, id_00100, id_00100_s);
 	readstatus(camerahandle);
@@ -304,10 +315,9 @@ int main(int argc, char **argv) {
 	readstatus(camerahandle);
 	sleep(1);
 	fprintf(stderr,"Done\n");
-
+	*/
 	
 	// Send the initialization sequence	
-
 
 	for(size_t i = 0; i < capturepacketcount; i++) {
 		// Check if we want to send a request or just listen to one.
@@ -337,46 +347,153 @@ int main(int argc, char **argv) {
 	// 7. Capturing video
 	// Adding logic to get video feed
 	fprintf(stderr,"Capture procedure...\n");
-
+	
+	// Handshake : Is video ready?
 	unsigned char id_40001[] = { 0x01, 0x00, 0x01, 0x00, 0x00, 0x08, 0x00, 0x00 };
 	size_t id_40001_s = 8;
+	
+	// Frame :  Reset video ready handshake
+	unsigned char resetvideo[] = { 0x01, 0x00, 0x01, 0x00, 0x00, 0x08, 0x00, 0x00, 0x07, 0x00, 0x01, 0x00 };
+	size_t resetvideo_s = 12;
+	
+	// Frame : Request key video data
+	unsigned char id_40007[] = { 0x01, 0x00, 0x07, 0x00, 0xB0, 0x06, 0x00, 0x00 };
+	size_t id_40007_s = 8;
+	
+	unsigned char id_40025[] = { 0x01, 0x01, 0x01, 0x00, 0xC8, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+	size_t id_40025_s = 12;
 	
 	unsigned char response_buffer[512];
 	memset(response_buffer, 0, 512);
 	unsigned char videoready_received = 0;
-	
 	unsigned char videoready_response[] = { 0x07, 0x00, 0x01, 0x00 };
-	unsigned char xxyyzz[3];
-	memset(xxyyzz, 0, 3);
-	unsigned char ttss[2];
-	memset(ttss, 0, 2);
 	
-	int do_next = 0;
-	while ( do_next == 0 ) {
+	unsigned char videokeyframe_data[3];
+	memset(videokeyframe_data, 0, 3);
+	unsigned char videokeyframe_data2[2];
+	memset(videokeyframe_data2, 0, 2);
+	
+	// Loop the handshake and wait for the video signal to be ready
+	//int do_next = 0;
+	while ( videoready_received == 0 ) {
 		fprintf(stderr,"Sending data video handshake...\n");
 		writecommand(camerahandle, id_40001, id_40001_s);
 		readstatus_data(camerahandle, response_buffer);
 		
-		unsigned char countdown = sizeof(videoready_response);
+		// Compare the received signal with the one expected
+		int is_identical = 1;
+		
 		for(size_t i = 0; i < sizeof(videoready_response); i++) {
-			if(response_buffer[i] == videoready_response[i]) countdown--; 
+			// Got the signal the video is ready to be captured, we need to have it twice.
+			if(response_buffer[i] != videoready_response[i]) is_identical = 0; 
 		}
-		
-		if(countdown == 0) {
-			// videoready received
-			if(videoready_received) {
-				// videoready received twice
-				fprintf(stderr,"Video ready received!\n");
-				
-				memcpy(xxyyzz,response_buffer+2,1);
-				fprintf(stderr,"%.2x ", xxyyzz[0]);
-			} else {
-				videoready_received++;
-			}
+		if (is_identical) {
+			videoready_received = 1;
+			
+			// Reset the video is ready signal
+			fprintf(stderr,"Reset videoready signal\n");
+			writecommand(camerahandle, resetvideo, resetvideo_s);
+			readstatus(camerahandle); // no status expected
 		}
-		
+		// Avoid flooding the device
+		sleep(1);
 	}
 	
+	// reset value of the buffer cache for comparison
+	memset(response_buffer, 0, 512);
+	int is_firsttime = 1;
+	
+	unsigned char videosync_info[] = { 0x09, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00 };
+	
+	// debug only limit number of execution
+	int limit = 5;
+	
+	while(limit >=0) {
+		// videoready received twice
+		fprintf(stderr,"Video ready received (and confirmed)!\n");
+	
+		
+		// Ask for Frame key data
+		fprintf(stderr,"Requesting Video Key Frame data\n");
+		writecommand(camerahandle, id_40007, id_40007_s);
+		readstatus_data(camerahandle, response_buffer);
+		
+		// Extract part of the data we want :
+		// part one
+		fprintf(stderr,"Video Key Frame Data important info :\n");
+		memcpy(videokeyframe_data, response_buffer+8, 3);
+		fprintf(stderr,"%.2x ", videokeyframe_data[0]);
+		fprintf(stderr,"%.2x ", videokeyframe_data[1]);
+		fprintf(stderr,"%.2x ", videokeyframe_data[2]);
+		fprintf(stderr,"\n");
+
+		// part two
+		memcpy(videokeyframe_data2, response_buffer+16, 2);
+		fprintf(stderr,"%.2x ", videokeyframe_data2[0]);
+		fprintf(stderr,"%.2x ", videokeyframe_data2[1]);
+		fprintf(stderr,"\n");
+		
+		// Debug only
+		fprintf(stderr,"Blinking... Not dead!\n");
+		writecommand(camerahandle, id_00100, id_00100_s);
+		readstatus(camerahandle);
+		sleep(1);
+		// End Debug
+		
+		
+		// Send frame to prepare for data sync.
+		fprintf(stderr,"Static frame\n");
+		writecommand(camerahandle, id_40025, id_40025_s);
+		readstatus(camerahandle);
+		
+		
+		// Sending the sync command
+		if (is_firsttime) {
+			fprintf(stderr," First time to send Video Key Frame info \n");
+			// Create the data to be sent with video key frame info.
+			videosync_info[8] = videokeyframe_data[0];
+			videosync_info[9] = videokeyframe_data[1];
+			videosync_info[10] = videokeyframe_data[2];
+			videosync_info[12] = 0x00;
+			videosync_info[13] = 0x80;
+
+			
+			// First time send semi-fixed data
+			fprintf(stderr,"Send Video Key Frame info (first time) \n");
+			writecommand(camerahandle, videosync_info, 16);
+			readstatus(camerahandle);
+			
+			// Debug only
+			fprintf(stderr,"Blinking... Not dead!\n");
+			writecommand(camerahandle, id_00101, id_00101_s);
+			readstatus(camerahandle);
+			sleep(1);
+			// End Debug
+			
+			is_firsttime = 0;
+			continue;
+		}
+		
+		// Send the sync command with all the video key frame info
+			videosync_info[8] = videokeyframe_data[0];
+			videosync_info[9] = videokeyframe_data[1];
+			videosync_info[10] = videokeyframe_data[2];
+			videosync_info[12] = videokeyframe_data2[0];
+			videosync_info[13] = videokeyframe_data2[1];
+			
+			fprintf(stderr,"Send Video Key Frame info \n");
+			writecommand(camerahandle, videosync_info, 16);
+			readstatus(camerahandle);
+		
+		// listen to video stream input EP.
+		
+		// do this over and over.
+		limit--;
+	}
+	
+	
+	
+	// Capture video in file
 	fprintf(stderr,"Capture stream sent, will try to capture stuff on other endpoint now...\n");
 	outputfile = fopen("capture.h264", "w+b");
 	if(outputfile != NULL) { 
