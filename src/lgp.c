@@ -246,7 +246,6 @@ int main(int argc, char **argv) {
 
 
 
-
 	// 1. Grab USB context
 	check(libusb_init(&usbcontext) == 0, "We DONT have the context");
 	fprintf(stderr,"We got the context\n");
