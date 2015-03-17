@@ -216,6 +216,33 @@ int readcapturesequence(struct commandframe **capturepackets,size_t *capturepack
 	return 0;
 }
 
+int load_firmware(const char *file) {
+	int transfer;
+
+	FILE *bin;
+	bin = fopen(file, "rb");
+
+	/* get filesize */
+	fseek(bin, 0L, SEEK_END);
+	long filesize = ftell(bin);
+	rewind(bin);
+
+	/* read firmware from file to buffer and bulk transfer to device */
+	for (int i = 0; i <= filesize; i += DATA_BUF) {
+		unsigned char data[DATA_BUF] = {0};
+		int bytes_remain = filesize - i;
+
+		if ((bytes_remain) > DATA_BUF) {
+			bytes_remain = DATA_BUF;
+		}
+
+		fread(data, bytes_remain, 1, bin);
+
+		libusb_bulk_transfer(camerahandle, 0x02, data, bytes_remain, &transfer, 0);
+	}
+
+	fclose(bin);
+}
 
 
 int main(int argc, char **argv) {
