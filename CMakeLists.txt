@@ -15,11 +15,16 @@ src
 link_directories(
 )
 
-## Flags that will be passed as arguments to the compiler - we skip standard include and carry everything in the project treea
-add_definitions(-Wall -std=c99)
-
 ## Src list
 file(GLOB_RECURSE SRCLIST src/*)
+
+## Copy firmware
+add_custom_target(copy_resource_files ALL
+	COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_LIST_DIR}/firmware ${CMAKE_CURRENT_LIST_DIR}/build
+        COMMENT "Copying firmware to build dir..."
+        VERBATIM
+)
+
 
 ## Target executables
 add_executable(lgp_gears ${SRCLIST})
