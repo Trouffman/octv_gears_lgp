@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <memory.h>
 #include <unistd.h>
+#include <stdarg.h>
 
 #define check(A, M, ...) \
 		do { \
@@ -36,6 +37,19 @@ struct commandframe {
 };
 
 static const char *captureconfigfile = NULL;
+
+int writecommand_va(libusb_device_handle *camerahandle, size_t count, ...) {
+    va_list bytelist;
+
+    unsigned char *buffer = (unsigned char*) malloc(sizeof (unsigned char) * count);
+    va_start(bytelist, camerahandle);
+    for (size_t i = 0; i < count; i++) {
+        buffer[i] = va_arg(bytelist, unsigned char);
+    }
+
+    writecommand(camerahandle, buffer, count);
+    free(buffer);
+}
 
 int writecommand(libusb_device_handle *camerahandle, unsigned char* commandbuffer, size_t size) {
     static int transferred = 0;
