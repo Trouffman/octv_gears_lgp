@@ -38,19 +38,6 @@ struct commandframe {
 
 static const char *captureconfigfile = NULL;
 
-int writecommand_va(libusb_device_handle *camerahandle, size_t count, ...) {
-    va_list bytelist;
-
-    unsigned char *buffer = (unsigned char*) malloc(sizeof (unsigned char) * count);
-    va_start(bytelist, camerahandle);
-    for (size_t i = 0; i < count; i++) {
-        buffer[i] = va_arg(bytelist, unsigned char);
-    }
-
-    writecommand(camerahandle, buffer, count);
-    free(buffer);
-}
-
 int writecommand(libusb_device_handle *camerahandle, unsigned char* commandbuffer, size_t size) {
     static int transferred = 0;
 
@@ -70,6 +57,21 @@ int writecommand(libusb_device_handle *camerahandle, unsigned char* commandbuffe
     } else {
         return 0;
     }
+}
+
+int writecommand_va(libusb_device_handle *camerahandle, size_t count, ...) {
+    va_list bytelist;
+
+    unsigned char *buffer = (unsigned char*) malloc(sizeof (unsigned char) * count);
+    va_start(bytelist, count);
+    for (size_t i = 0; i < count; i++) {
+        buffer[i] = (unsigned char) va_arg(bytelist, int);
+    }
+    va_end(bytelist);
+
+    int ret = writecommand(camerahandle, buffer, count);
+    free(buffer);
+    return ret;
 }
 
 int writevideocommand(libusb_device_handle *camerahandle, unsigned char* commandbuffer, size_t size) {
@@ -342,7 +344,9 @@ int main(int argc, char **argv) {
     //unsigned char id_30010[] = { 0x07, 0x00, 0x00, 0x00 };
     //size_t id_30010_s = 4;
 
+    writecommand_va(camerahandle, 10, 0x0b, 0x01, 0x02, 0x00, 0x15, 0x00, 0x00, 0x00, 0x2c, 0x0b);
 
+    sleep(10);
     // Boot
     /*
     fprintf(stderr,"Init procedure...\n");
