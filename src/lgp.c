@@ -326,14 +326,7 @@ int main(int argc, char **argv) {
     check(libusb_claim_interface(camerahandle, CAMERA_INTERACE) == 0, "Failed to claim interface!");
 
     // 6. Initialization sequence
-
-    unsigned char id_00100[] = {0x0b, 0x01, 0x02, 0x00, 0x15, 0x00, 0x00, 0x00, 0x2c, 0x0b};
-    size_t id_00100_s = 10;
-    unsigned char id_00101[] = {0x0b, 0x01, 0x02, 0x00, 0x15, 0x00, 0x00, 0x00, 0x2c, 0x03};
-    size_t id_00101_s = 10;
-    unsigned char id_00102[] = {0x0b, 0x01, 0x02, 0x00, 0x15, 0x00, 0x00, 0x00, 0x2c, 0x05};
-    size_t id_00102_s = 10;
-
+	
     // Frames Data with unified IDs
 
     //unsigned char id_40009[] = { 0x01, 0x01, 0x01, 0x00, 0x00, 0x08, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00 };
@@ -349,7 +342,15 @@ int main(int argc, char **argv) {
     sleep(10);
     // Boot
     /*
-    fprintf(stderr,"Init procedure...\n");
+    unsigned char id_00100[] = {0x0b, 0x01, 0x02, 0x00, 0x15, 0x00, 0x00, 0x00, 0x2c, 0x0b};
+    size_t id_00100_s = 10;
+    unsigned char id_00101[] = {0x0b, 0x01, 0x02, 0x00, 0x15, 0x00, 0x00, 0x00, 0x2c, 0x03};
+    size_t id_00101_s = 10;
+    unsigned char id_00102[] = {0x0b, 0x01, 0x02, 0x00, 0x15, 0x00, 0x00, 0x00, 0x2c, 0x05};
+    size_t id_00102_s = 10;
+
+	
+	fprintf(stderr,"Init procedure...\n");
     writecommand(camerahandle, id_00100, id_00100_s);
     readstatus(camerahandle);
     sleep(1);
@@ -365,7 +366,8 @@ int main(int argc, char **argv) {
      */
 
     // Send the initialization sequence	
-
+	// Init Sequence from file (capture_sequence) - deprecated.
+	/*
     for (size_t i = 0; i < capturepacketcount; i++) {
         // Check if we want to send a request or just listen to one.
         if (capturepackets[i].size > 0) {
@@ -389,10 +391,13 @@ int main(int argc, char **argv) {
             if (capturepackets[i].endpoint == 83 && capturepackets[i].expectanswer)
                 readstatus(camerahandle);
         }
-    }
+	}
+	*/
 
     // 7. Capturing video
-    // Adding logic to get video feed
+    
+	/*
+	// Adding logic to get video feed
     fprintf(stderr, "Capture procedure...\n");
 
     // Handshake : Is video ready?
@@ -451,7 +456,7 @@ int main(int argc, char **argv) {
     int is_firsttime = 1;
 
     unsigned char videosync_info[] = {0x09, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00};
-
+	
     // debug only limit number of execution
     int limit = 5;
 
@@ -537,7 +542,7 @@ int main(int argc, char **argv) {
         // do this over and over.
         limit--;
     }
-
+	*/
 
 
     // Capture video in file
