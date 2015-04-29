@@ -327,43 +327,35 @@ int main(int argc, char **argv) {
 
     // 6. Initialization sequence
 	
-    // Frames Data with unified IDs
-
-    //unsigned char id_40009[] = { 0x01, 0x01, 0x01, 0x00, 0x00, 0x08, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00 };
-    //size_t id_40009_s = 12;
-
-
-    // Answer data 
-    //unsigned char id_30010[] = { 0x07, 0x00, 0x00, 0x00 };
-    //size_t id_30010_s = 4;
+	fprintf(stderr,"Init procedure started...\n");
+	
+	// Make the LED blink
+	fprintf(stderr,"Blinking LED...\n");
 
     writecommand_va(camerahandle, 10, 0x0b, 0x01, 0x02, 0x00, 0x15, 0x00, 0x00, 0x00, 0x2c, 0x0b);
-
-    sleep(10);
-    // Boot
-    /*
-    unsigned char id_00100[] = {0x0b, 0x01, 0x02, 0x00, 0x15, 0x00, 0x00, 0x00, 0x2c, 0x0b};
-    size_t id_00100_s = 10;
-    unsigned char id_00101[] = {0x0b, 0x01, 0x02, 0x00, 0x15, 0x00, 0x00, 0x00, 0x2c, 0x03};
-    size_t id_00101_s = 10;
-    unsigned char id_00102[] = {0x0b, 0x01, 0x02, 0x00, 0x15, 0x00, 0x00, 0x00, 0x2c, 0x05};
-    size_t id_00102_s = 10;
-
+	readstatus(camerahandle);
+    sleep(1);
+	writecommand_va(camerahandle, 10, 0x0b, 0x01, 0x02, 0x00, 0x15, 0x00, 0x00, 0x00, 0x2c, 0x03);
+    readstatus(camerahandle);
+	sleep(1);
+	writecommand_va(camerahandle, 10, 0x0b, 0x01, 0x02, 0x00, 0x15, 0x00, 0x00, 0x00, 0x2c, 0x05);
+    readstatus(camerahandle);
+	sleep(1);
 	
-	fprintf(stderr,"Init procedure...\n");
-    writecommand(camerahandle, id_00100, id_00100_s);
-    readstatus(camerahandle);
-    sleep(1);
+	fprintf(stderr, "End of LED Blinking...\n")
+	
+	// Sequence initiating the device -- experimental
 
-    writecommand(camerahandle, id_00101, id_00101_s);
-    readstatus(camerahandle);
-    sleep(1);
-
-    writecommand(camerahandle, id_00102, id_00102_s);
-    readstatus(camerahandle);
-    sleep(1);
-    fprintf(stderr,"Done\n");
-     */
+	init_sequence();
+	fprintf(stderr, "End of Device Init - pre-firmware \n")
+	sleep(5);
+	
+	// Loading the firmware to the device.
+	load_firmware(camerahandle, 'qpaudfw.bin');
+	
+	
+	
+	
 
     // Send the initialization sequence	
 	// Init Sequence from file (capture_sequence) - deprecated.
