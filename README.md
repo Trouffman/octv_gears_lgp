@@ -1,5 +1,9 @@
 octv_gears_lgp
 ==============
+
+This project is non-working / not-maintained
+
+==============
 OverClocking-TV Gear Family project.
 
 Goal of this project :
