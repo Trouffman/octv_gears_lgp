@@ -1,7 +1,7 @@
 octv_gears_lgp
 ==============
 
-This project is non-working / not-maintained
+This project is non-working / not-maintained anymore.
 
 ==============
 OverClocking-TV Gear Family project.
@@ -19,7 +19,6 @@ Control Command supported :
 
 
 Project Documentation :
-https://drive.google.com/drive/u/1/#folders/0Bz90P9s8CEC3QzEyZnpla3RESHM/0Bz90P9s8CEC3VmhQOUUzcHJfYXc/0Bz90P9s8CEC3V3hsVTNoSnZULVk
 
 Project repository :
 https://github.com/Trouffman/octv_gears_lgp
